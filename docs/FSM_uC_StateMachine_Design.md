@@ -160,6 +160,7 @@ FSM_uC (root)
 | G1 | LOCAL / REMOTE | `CHASSIS_ENABLE == FALSE` (가드) | (동일 모드 유지) | 전 출력 강제 OFF |
 
 > 수압 저하(Wp low)는 상태 전이를 일으키지 않으며 Warning 플래그만 세팅한다.
+> "전 출력 OFF"는 소방특장 출력(펌프/메인밸브)에 적용되며, **엔진 시동 출력(A50)은 상시 ON 가정이므로 OFF 대상에서 제외**한다(8절 참조).
 
 ---
 
@@ -176,9 +177,8 @@ FSM_uC (root)
 | 펌프 RPM 내림    | A42 `SIG_Pmp_RPM_Down` | Cmd.PumpRpmDown  | A54 `Out_Pmp_RPM_Down` | PropPwr (HS) |
 | 메인밸브 열림    | A27 `SIG_MV_Open`      | Cmd.MainValveOpen| A51 `OUT_MV_Open`      | PropPwr (HS) |
 | 메인밸브 닫힘    | A40 `SIG_MV_Close`     | Cmd.MainValveClose| A52 `OUT_MV_Close`    | PropPwr (HS) |
-| 엔진 시동        | (해당 버튼 미할당*)     | Cmd.EngineStart  | A50 `OUT_Eng_Start_HS` | DigSig (HS)  |
 
-> *엔진 시동: GW2에서 입력측 버튼 핀 할당이 명시되지 않음(출력 A50만 할당). LOCAL 모드 시동 트리거 소스는 확인 필요(10절 Q1).
+> **엔진 시동(A50 `OUT_Eng_Start_HS`)은 상태 머신의 조건부 게이팅 대상이 아니다.** 엔진은 항상 시동 걸려 있다고 가정하므로, A50은 **상시 ON(활성)** 으로 설정하거나 본 상태 머신의 모드/명령 로직 범위에서 제외한다. 따라서 OFF/SAFE_STATE에서의 "전 출력 OFF" 대상에서도 **엔진 시동 출력은 예외**로 둔다(엔진 유지).
 
 **상호배타(Interlock) 권고**: 펌프 Start/Stop, 밸브 Open/Close, RPM Up/Down 은 **동시 ON 금지**(동일 쌍 중 하나만). 동시 입력 시 우선순위(예: Stop/Close 우선) 적용 — 구현 시 가드로 처리.
 
@@ -202,12 +202,15 @@ C단계에서 사용할 구조체 접근 패턴 (헤더 근거):
 
 ## 10. 미해결 / 후속 바인딩 (Open Items)
 
-DBC·시스템아키텍처 수령 후 확정:
+- **Q1 (엔진시동) — [해결]**: 엔진은 **항상 시동 걸려 있다고 가정**. A50 `OUT_Eng_Start_HS`는 상태 머신의 조건부 게이팅 대상이 아니며 상시 ON으로 처리(8절 참조). LOCAL 버튼 트리거 불필요.
 
-- **Q1 (엔진시동 LOCAL 소스)**: A50 출력에 대응하는 LOCAL 버튼 입력이 핀맵에 없음. 로컬 시동 트리거를 어떻게 받는지(별도 핀 / 패널 전용 / Remote 전용) 확인 필요.
+### CAN DB(DBC) 업데이트 시 확정 (수령 대기)
+
+아래 항목은 **CAN DB가 업데이트되면 일괄 해결**된다. DBC 수령 후 B/C단계에서 바인딩한다.
+
 - **Q2 (CHASSIS_ENABLE 매핑)**: CAN4 상의 Chassis state enum 값 집합 → DBC로 바인딩.
 - **Q3 (Remote Command 메시지)**: CAN4 Remote Command 각 비트/시그널 → 기능 매핑 (DBC).
-- **Q4 (Status/FSM Info 송신)**: FSM 상태·경고를 담아 CAN4로 송신할 메시지 레이아웃.
+- **Q4 (Status/FSM Info 송신)**: FSM 상태·경고를 담아 CAN4로 송신할 메시지 레이아웃 (DBC).
 - **Q5 (수압 임계값 WP_LOW_THR)**: 경고 발생 수압 임계값(물리 단위) 수치.
 - **Q6 (버튼 임계 THR)**: AnU 입력 pressed 판정 전압 임계값.
 - **Q7 (타임아웃 값)**: CAN4 수신 워치독 타임아웃(ms).
